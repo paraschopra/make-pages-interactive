@@ -4,6 +4,8 @@ A Claude Code skill that turns any folder of static HTML pages into a **live com
 
 Originally built for iterating on research artifacts (long HTML reports with plots, tables, explanations) but works for any folder of HTML: docs, design mocks, generated reports, prototype UIs.
 
+![Screenshot of make-pages-interactive in action](screenshot.png)
+
 ---
 
 ## How it works
@@ -145,6 +147,7 @@ When you submit a batch:
 make-pages-interactive/
 ├── SKILL.md              # Agent-facing skill spec
 ├── README.md             # This file
+├── screenshot.png        # README screenshot
 ├── LICENSE
 ├── lib/
 │   ├── feedback.js
