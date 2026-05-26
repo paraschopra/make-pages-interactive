@@ -1,0 +1,613 @@
+/* Claude Feedback — drop-in styles. All class names prefixed with cf- to avoid
+   collisions with host-page CSS. */
+
+#claude-feedback-root,
+#claude-feedback-root * {
+  box-sizing: border-box;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+}
+
+/* ---------------- Launcher button (bottom-right) ---------------- */
+.cf-launcher {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 2147483640;
+}
+
+.cf-btn-primary {
+  background: #b14000;
+  color: white;
+  border: none;
+  border-radius: 999px;
+  padding: 12px 18px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.18);
+  transition: transform 0.08s ease, box-shadow 0.15s ease;
+}
+.cf-btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 26px rgba(0, 0, 0, 0.22); }
+.cf-btn-primary:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+.cf-btn-primary.cf-btn-small,
+.cf-btn.cf-btn-small {
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+.cf-btn {
+  background: #fff;
+  color: #1a1a1a;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.1s ease, border-color 0.1s ease;
+}
+.cf-btn:hover { background: #f5f5f5; border-color: #b14000; }
+.cf-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.cf-icon-btn {
+  background: transparent;
+  border: none;
+  font-size: 22px;
+  line-height: 1;
+  color: #666;
+  cursor: pointer;
+  padding: 0 6px;
+}
+.cf-icon-btn:hover { color: #1a1a1a; }
+
+#cf-badge {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.25);
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 1px 7px;
+  margin-left: 4px;
+  min-width: 16px;
+  text-align: center;
+}
+#cf-badge:empty { display: none; }
+
+/* Keyboard-hint pill shown on buttons */
+.cf-kbd-hint {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: ui-monospace, Menlo, monospace;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.22);
+  color: inherit;
+  margin-left: 4px;
+  letter-spacing: 0.5px;
+  vertical-align: 1px;
+  opacity: 0.95;
+}
+/* On light buttons (cf-btn / cf-tab) the hint pill needs different colors */
+.cf-btn .cf-kbd-hint,
+.cf-tab .cf-kbd-hint {
+  background: #f3eedf;
+  color: #888;
+}
+.cf-header-hint {
+  font-size: 10px;
+  font-family: ui-monospace, Menlo, monospace;
+  color: #aaa;
+  letter-spacing: 0.5px;
+  flex: 1;
+  text-align: right;
+  margin-right: 8px;
+}
+
+/* ---------------- Side panel ---------------- */
+.cf-panel {
+  position: fixed;
+  right: 18px;
+  bottom: 78px;
+  width: 380px;
+  /* Fixed height so the panel doesn't resize when you switch tabs */
+  height: min(540px, calc(100vh - 110px));
+  background: white;
+  border: 1px solid #d8d2c2;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.22);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 2147483641;
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.cf-panel.cf-open {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.cf-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid #eee;
+  background: #fdfcf8;
+}
+
+.cf-panel-header strong { font-size: 15px; }
+
+.cf-tabs {
+  display: flex;
+  border-bottom: 1px solid #eee;
+  background: #fdfcf8;
+}
+.cf-tab {
+  flex: 1;
+  background: transparent;
+  border: none;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: #666;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+.cf-tab:hover { color: #1a1a1a; }
+.cf-tab.cf-tab-active { color: #b14000; border-bottom-color: #b14000; font-weight: 600; }
+
+/* Tab panes are flex columns so the list scrolls in the middle while
+   panel-actions stay pinned to the bottom of the panel. */
+.cf-tab-pane {
+  display: none;
+  padding: 12px 14px;
+  flex: 1;
+  min-height: 0;       /* allow child flex:1 to shrink */
+  flex-direction: column;
+}
+.cf-tab-pane.cf-tab-pane-active { display: flex; }
+
+.cf-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+}
+
+.cf-list:empty::after {
+  content: "Nothing yet. Highlight any text on the page to comment, or click '+ general question' below.";
+  display: block;
+  color: #888;
+  font-size: 13px;
+  line-height: 1.4;
+  padding: 16px 6px;
+  font-style: italic;
+}
+
+#cf-history-list:empty::after {
+  content: "No previous batches yet. After Claude processes a batch of feedback, the changes will appear here.";
+}
+
+.cf-comment-item {
+  border: 1px solid #eee;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #fafafa;
+  font-size: 13.5px;
+  line-height: 1.4;
+}
+
+/* Processing banner — shown in Pending tab while a submitted batch is being processed */
+.cf-processing-banner {
+  border: 1px solid #f0c890;
+  background: #fff8e8;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.cf-processing-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.cf-processing-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cf-processing-meta {
+  color: #888;
+  font-size: 11.5px;
+  margin-left: 6px;
+}
+.cf-processing-status {
+  margin-top: 8px;
+  padding: 8px 10px;
+  background: rgba(217, 119, 6, 0.08);
+  border-left: 3px solid #d97706;
+  border-radius: 4px;
+  font-size: 12.5px;
+  color: #5a3a00;
+}
+.cf-processing-details {
+  margin-top: 8px;
+  font-size: 12px;
+}
+.cf-processing-details summary {
+  cursor: pointer;
+  color: #888;
+  outline: none;
+}
+.cf-processing-details summary:hover { color: #1a1a1a; }
+
+@keyframes cf-spin { to { transform: rotate(360deg); } }
+.cf-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #f0c890;
+  border-top-color: #b14000;
+  border-radius: 50%;
+  animation: cf-spin 0.9s linear infinite;
+  flex-shrink: 0;
+}
+
+/* Stale variant — "no agent picked this up" */
+.cf-processing-banner.cf-processing-stale {
+  border-color: #d97706;
+  background: #fff4e0;
+}
+.cf-processing-banner.cf-processing-stale .cf-processing-status {
+  background: rgba(217, 119, 6, 0.08);
+  border-left-color: #d97706;
+  color: #5a3a00;
+}
+.cf-processing-banner.cf-processing-stale code {
+  background: rgba(217, 119, 6, 0.12);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 11.5px;
+}
+.cf-stale-icon {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #d97706;
+  color: white;
+  font-weight: 700;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.cf-comment-quote {
+  font-size: 12px;
+  color: #888;
+  border-left: 3px solid #d8d2c2;
+  padding: 2px 8px;
+  margin-bottom: 6px;
+  max-height: 4.2em;
+  overflow: hidden;
+  font-style: italic;
+}
+.cf-comment-quote.cf-comment-general { font-style: normal; color: #b14000; font-weight: 600; font-size: 11px; letter-spacing: 0.4px; text-transform: uppercase; border-left-color: #b14000; }
+.cf-comment-body { color: #1a1a1a; white-space: pre-wrap; }
+.cf-comment-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 6px;
+  color: #999;
+  font-size: 11px;
+}
+.cf-comment-delete {
+  background: transparent;
+  border: none;
+  color: #b00020;
+  cursor: pointer;
+  font-size: 11px;
+}
+.cf-comment-delete:hover { text-decoration: underline; }
+
+.cf-panel-actions {
+  display: flex;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid #eee;
+  margin-top: 8px;
+  flex-shrink: 0;       /* never compress; always visible */
+}
+.cf-panel-actions:not(:first-of-type) {
+  /* second actions row (e.g. submit button) sits flush with the first row */
+  border-top: 0;
+  padding-top: 0;
+  margin-top: 6px;
+}
+.cf-panel-actions .cf-btn,
+.cf-panel-actions .cf-btn-primary { flex: 1; }
+
+.cf-hint {
+  margin: 8px 0 0;
+  font-size: 11.5px;
+  color: #888;
+  line-height: 1.4;
+  flex-shrink: 0;
+}
+
+/* ---------------- Inline selection popup ---------------- */
+.cf-selection-popup {
+  position: absolute;
+  z-index: 2147483642;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.1s ease;
+}
+.cf-selection-popup.cf-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ---------------- Comment editor ---------------- */
+.cf-editor {
+  position: fixed;
+  z-index: 2147483643;
+  width: 320px;
+  background: white;
+  border: 1px solid #d8d2c2;
+  border-radius: 10px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+  padding: 12px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(4px);
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+.cf-editor.cf-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+.cf-editor-quote {
+  font-size: 12px;
+  color: #666;
+  border-left: 3px solid #d8d2c2;
+  padding: 2px 8px;
+  margin-bottom: 8px;
+  max-height: 4.5em;
+  overflow: hidden;
+  font-style: italic;
+}
+.cf-editor-quote.cf-comment-general { font-style: normal; color: #b14000; font-weight: 600; font-size: 11px; letter-spacing: 0.4px; text-transform: uppercase; }
+.cf-editor textarea {
+  width: 100%;
+  font-family: inherit;
+  font-size: 14px;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  padding: 8px 10px;
+  resize: vertical;
+}
+.cf-editor textarea:focus { outline: none; border-color: #b14000; }
+.cf-editor-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+/* ---------------- Element-selection mode ---------------- */
+body.cf-elem-mode {
+  cursor: crosshair;
+}
+
+/* Hover outline: subtle dashed, hints "you can click me" */
+.cf-elem-hover {
+  outline: 2px dashed #b14000 !important;
+  outline-offset: 2px;
+  background: rgba(177, 64, 0, 0.04);
+  cursor: pointer !important;
+}
+
+/* Solid outline once selected, with a small label */
+.cf-elem-selected {
+  outline: 3px solid #b14000 !important;
+  outline-offset: 2px;
+  background: rgba(177, 64, 0, 0.08);
+  position: relative;
+}
+.cf-elem-selected::before {
+  content: "selected";
+  position: absolute;
+  top: -10px;
+  left: -2px;
+  background: #b14000;
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 8px;
+  border-radius: 999px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  z-index: 1;
+}
+
+/* When the toggle button is active */
+#cf-elem-toggle.cf-active {
+  background: #b14000;
+  color: white;
+  border-color: #b14000;
+}
+
+/* Element-popup button arrangement (two buttons side-by-side) */
+#cf-elem-popup {
+  display: inline-flex;
+  gap: 6px;
+}
+
+/* ---------------- Change highlights ---------------- */
+[data-cf-change] {
+  position: relative;
+  outline: 0 solid transparent;
+  border-radius: 3px;
+  transition: outline 0.25s ease, background 0.25s ease;
+}
+[data-cf-change].cf-change-active {
+  outline: 3px solid #b14000;
+  background: rgba(177, 64, 0, 0.06);
+  animation: cf-pulse 1.5s ease-in-out 2;
+}
+@keyframes cf-pulse {
+  0%, 100% { outline-color: #b14000; }
+  50%      { outline-color: #ffb070; }
+}
+
+/* History list items — compact: title + asked, no description */
+.cf-history-batch {
+  border: 1px solid #eee;
+  border-radius: 6px;
+  padding: 6px 10px 8px;
+  background: white;
+}
+.cf-history-batch-header {
+  font-size: 10.5px;
+  color: #aaa;
+  letter-spacing: 0.3px;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+}
+.cf-history-change {
+  font-size: 13px;
+  line-height: 1.4;
+  padding: 5px 0;
+  border-top: 1px dashed #eee;
+  cursor: pointer;
+}
+.cf-history-change:first-of-type { border-top: none; }
+.cf-history-change:hover .cf-history-change-title { color: #b14000; }
+.cf-history-change-title { font-weight: 600; color: #1a1a1a; }
+.cf-history-change-quote {
+  font-size: 11.5px;
+  color: #888;
+  font-style: italic;
+  border-left: 2px solid #d8d2c2;
+  padding: 1px 6px;
+  margin-top: 3px;
+}
+
+/* ---------------- Tour bar ---------------- */
+.cf-tour-bar {
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%) translateY(10px);
+  background: rgba(20, 20, 20, 0.92);
+  color: white;
+  padding: 10px 14px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+  z-index: 2147483644;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.cf-tour-bar.cf-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(0);
+}
+.cf-tour-bar .cf-btn,
+.cf-tour-bar .cf-btn-small {
+  background: rgba(255, 255, 255, 0.12);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+.cf-tour-bar .cf-btn:hover { background: rgba(255, 255, 255, 0.2); border-color: rgba(255, 255, 255, 0.4); }
+.cf-tour-label { font-size: 13px; min-width: 80px; text-align: center; }
+
+/* "Changes ready, reload to see" — persistent top-center banner.
+   Shown when new changes arrived while the user was likely on another tab.
+   Title is also prefixed with 🔔 (see feedback.js). Press R to reload. */
+.cf-reload-banner {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-12px);
+  background: #1a1a1a;
+  color: white;
+  padding: 8px 10px 8px 14px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.28);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  z-index: 2147483646;
+}
+.cf-reload-banner.cf-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(0);
+}
+.cf-reload-banner .cf-reload-bell {
+  font-size: 17px;
+  display: inline-block;
+  transform-origin: 50% 10%;
+  animation: cf-bell-shake 1.4s ease-in-out infinite;
+}
+.cf-reload-banner .cf-reload-msg {
+  letter-spacing: 0.1px;
+}
+.cf-reload-banner .cf-btn-primary {
+  background: #b14000;
+  padding: 6px 12px;
+  font-size: 13px;
+  box-shadow: none;
+}
+.cf-reload-banner .cf-btn-primary:hover {
+  transform: none;
+  box-shadow: 0 4px 14px rgba(177, 64, 0, 0.4);
+}
+@keyframes cf-bell-shake {
+  0%, 60%, 100% { transform: rotate(0); }
+  68%  { transform: rotate(-14deg); }
+  76%  { transform: rotate(10deg); }
+  84%  { transform: rotate(-6deg); }
+  92%  { transform: rotate(3deg); }
+}
+
+/* Notice / toast */
+.cf-toast {
+  position: fixed;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-8px);
+  background: #1a1a1a;
+  color: white;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.22);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  z-index: 2147483645;
+}
+.cf-toast.cf-visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
