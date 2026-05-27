@@ -136,12 +136,18 @@ class FeedbackHandler(http.server.SimpleHTTPRequestHandler):
             self._serve_from_lib(parsed.path[len("/lib/"):])
             return
         # Block HTTP reads of anything under /feedback/ except history.json.
-        # Normalize first so /./feedback/inbox.jsonl, /a/../feedback/...,
-        # and %66eedback/... all collapse to the canonical form before the
-        # comparison — otherwise SimpleHTTPRequestHandler.translate_path
-        # would resolve them and serve the file anyway.
-        safe_path = posixpath.normpath(unquote(parsed.path))
-        if safe_path.startswith("/feedback/") and safe_path not in FEEDBACK_PUBLIC_FILES:
+        # Normalize first so dot-segments (/./feedback/inbox.jsonl), double
+        # slashes, and percent-encoding (/%66eedback/...) all collapse to
+        # the canonical form. Lowercase too — macOS APFS and Windows NTFS
+        # are case-insensitive, so /FEEDBACK/inbox.jsonl would otherwise
+        # bypass the prefix check and translate_path would still find the
+        # file. The bare "/feedback" / "/feedback/" cases are blocked
+        # explicitly to prevent SimpleHTTPRequestHandler from rendering
+        # a directory listing that leaks the inbox/lastseen filenames.
+        safe_path = posixpath.normpath(unquote(parsed.path)).lower()
+        if safe_path == "/feedback" or (
+            safe_path.startswith("/feedback/") and safe_path not in FEEDBACK_PUBLIC_FILES
+        ):
             self.send_error(403, "forbidden")
             return
         super().do_GET()
