@@ -17,17 +17,28 @@ import http.server
 import json
 import mimetypes
 import os
+import posixpath
 import socketserver
 import sys
 import threading
 import time
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 # Project-root lib directory (where this file lives). The server serves
 # /lib/<file> from here so artifacts can <script src="/lib/feedback.js">
 # instead of inlining — library updates apply on a simple page refresh.
 LIB_DIR = Path(__file__).resolve().parent
+
+# Cap incoming POST bodies. Comments are small JSON; this is a generous
+# ceiling that still bounds memory/disk consumption per request.
+MAX_BODY_BYTES = 1 * 1024 * 1024  # 1 MiB
+
+# history.json is the only file in <artifact>/feedback/ that the in-page
+# library needs to fetch (it polls for new walkthroughs). Everything else —
+# inbox.jsonl, lastseen.json, and any future bookkeeping — is agent-side
+# state that browser/HTTP clients should not be able to read.
+FEEDBACK_PUBLIC_FILES = frozenset({"/feedback/history.json"})
 
 # ---------- Auto-shutdown bookkeeping ----------
 # Servers launched as Claude Code background tasks would otherwise outlive the
@@ -77,14 +88,31 @@ class FeedbackHandler(http.server.SimpleHTTPRequestHandler):
         self.send_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
         self.send_header("Pragma", "no-cache")
         self.send_header("Expires", "0")
-        self.send_header("Access-Control-Allow-Origin", "*")
         super().end_headers()
 
-    def do_OPTIONS(self):
-        self.send_response(204)
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
-        self.end_headers()
+    def _check_same_origin(self) -> bool:
+        # Block cross-origin POSTs from a malicious tab in the user's browser.
+        # Browsers attach Origin on cross-origin POSTs; same-origin fetches
+        # from the in-page library, curl, and the agent typically do not.
+        # If Origin is set, it must name this server's host.
+        origin = self.headers.get("Origin")
+        if not origin:
+            return True
+        host = self.headers.get("Host", "")
+        return origin in (f"http://{host}", f"https://{host}")
+
+    def _read_body(self):
+        # Read the request body with a hard size cap. On error, sends a
+        # response and returns None so the caller can just bail.
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+        except ValueError:
+            self._json(400, {"ok": False, "error": "invalid content-length"})
+            return None
+        if length < 0 or length > MAX_BODY_BYTES:
+            self._json(413, {"ok": False, "error": "payload too large"})
+            return None
+        return self.rfile.read(length).decode("utf-8") if length else ""
 
     def guess_type(self, path):
         # SimpleHTTPRequestHandler uses this to set Content-Type. Force UTF-8
@@ -106,6 +134,21 @@ class FeedbackHandler(http.server.SimpleHTTPRequestHandler):
             return
         if parsed.path.startswith("/lib/"):
             self._serve_from_lib(parsed.path[len("/lib/"):])
+            return
+        # Block HTTP reads of anything under /feedback/ except history.json.
+        # Normalize first so dot-segments (/./feedback/inbox.jsonl), double
+        # slashes, and percent-encoding (/%66eedback/...) all collapse to
+        # the canonical form. Lowercase too — macOS APFS and Windows NTFS
+        # are case-insensitive, so /FEEDBACK/inbox.jsonl would otherwise
+        # bypass the prefix check and translate_path would still find the
+        # file. The bare "/feedback" / "/feedback/" cases are blocked
+        # explicitly to prevent SimpleHTTPRequestHandler from rendering
+        # a directory listing that leaks the inbox/lastseen filenames.
+        safe_path = posixpath.normpath(unquote(parsed.path)).lower()
+        if safe_path == "/feedback" or (
+            safe_path.startswith("/feedback/") and safe_path not in FEEDBACK_PUBLIC_FILES
+        ):
+            self.send_error(403, "forbidden")
             return
         super().do_GET()
 
@@ -132,13 +175,21 @@ class FeedbackHandler(http.server.SimpleHTTPRequestHandler):
 
     def do_POST(self):
         parsed = urlparse(self.path)
+        if not self._check_same_origin():
+            self._json(403, {"ok": False, "error": "cross-origin POST rejected"})
+            return
+
         if parsed.path == "/feedback":
-            length = int(self.headers.get("Content-Length", "0"))
-            body = self.rfile.read(length).decode("utf-8") if length else ""
+            body = self._read_body()
+            if body is None:
+                return
             try:
                 data = json.loads(body)
             except json.JSONDecodeError:
                 self._json(400, {"ok": False, "error": "invalid json"})
+                return
+            if not isinstance(data, dict):
+                self._json(400, {"ok": False, "error": "expected json object"})
                 return
             data["received_at"] = time.time()
             data["received_iso"] = time.strftime("%Y-%m-%dT%H:%M:%S")
@@ -151,12 +202,16 @@ class FeedbackHandler(http.server.SimpleHTTPRequestHandler):
             return
 
         if parsed.path == "/mark-seen":
-            length = int(self.headers.get("Content-Length", "0"))
-            body = self.rfile.read(length).decode("utf-8") if length else ""
+            body = self._read_body()
+            if body is None:
+                return
             try:
                 data = json.loads(body)
             except json.JSONDecodeError:
                 data = {}
+            if not isinstance(data, dict):
+                self._json(400, {"ok": False, "error": "expected json object"})
+                return
             seen_path = self.feedback_dir / "lastseen.json"
             seen_path.write_text(json.dumps(data, indent=2))
             self._json(200, {"ok": True})
@@ -174,8 +229,14 @@ class FeedbackHandler(http.server.SimpleHTTPRequestHandler):
 
     # Silence the default request logging — too noisy for our purposes.
     def log_message(self, format, *args):
-        # Only log POSTs and errors
-        if args and (args[0].startswith("POST") or " 4" in " ".join(map(str, args)) or " 5" in " ".join(map(str, args))):
+        # Only log POSTs and errors. args[0] is typically the request line
+        # (str) from log_request, but log_error passes the response code as
+        # an int — stringify before testing.
+        if not args:
+            return
+        first = str(args[0])
+        joined = " ".join(str(a) for a in args)
+        if first.startswith("POST") or " 4" in joined or " 5" in joined:
             sys.stderr.write("%s - %s\n" % (self.address_string(), format % args))
 
 
@@ -203,6 +264,9 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("artifact_dir", help="directory containing the HTML artifact")
     ap.add_argument("--port", type=int, default=5050)
+    ap.add_argument("--bind", default="127.0.0.1",
+                    help="interface to bind to. Default 127.0.0.1 (loopback only). "
+                         "Use 0.0.0.0 to expose on the LAN — only do this on a trusted network.")
     ap.add_argument("--idle-timeout", type=int, default=600,
                     help="exit if no client requests for this many seconds (0 = disable). Default 600 (10 min).")
     args = ap.parse_args()
@@ -234,9 +298,9 @@ def main():
         daemon_threads = True
 
     try:
-        srv = ReuseTCP(("", args.port), FeedbackHandler)
+        srv = ReuseTCP((args.bind, args.port), FeedbackHandler)
     except OSError as e:
-        print(f"[server] FATAL: port {args.port} is unavailable ({e}).")
+        print(f"[server] FATAL: {args.bind}:{args.port} is unavailable ({e}).")
         print(f"[server]  - check what's running there:  curl -s http://localhost:{args.port}/info")
         print(f"[server]  - or kill it:                  lsof -ti:{args.port} | xargs kill")
         print(f"[server]  - or run me on a different port: --port {args.port + 1}")
@@ -248,7 +312,9 @@ def main():
     ).start()
 
     with srv:
-        print(f"[server] serving {artifact_dir}")
+        print(f"[server] serving {artifact_dir} on {args.bind}:{args.port}")
+        if args.bind not in ("127.0.0.1", "localhost"):
+            print(f"[server] WARNING: bound to {args.bind} — reachable beyond loopback")
         print(f"[server] open http://localhost:{args.port}/sample.html")
         print(f"[server] inbox:   {inbox}")
         print(f"[server] history: {history}")
