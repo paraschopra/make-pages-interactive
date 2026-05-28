@@ -44,9 +44,25 @@ User says any of:
    ```
    Do NOT poll — let the Monitor notification arrive.
 
+## Direct-edit mode (plain-text edits, no agent involvement)
+
+The page toolbar now has a **✏️ edit text** button (also `E` shortcut). When the user toggles it on, eligible text blocks (paragraphs, headings, list items, table cells, captions, etc.) become `contenteditable`. Plain-text edits are committed on blur:
+
+1. Client POSTs `{ page_url, cf_id, element_id, old_text, new_text }` to `/edit`.
+2. The server (`server.py`) opens the page file, finds the target element by `data-cf-id` (or `id`), replaces `old_text` with `<span data-cf-change="ch-edit-<hex>">new_text</span>`, and writes the file.
+3. The server **also** appends a normal batch to `feedback/history.json` with `source: "direct-edit"` and a `kind: "edit"` change, AND writes a `kind: "edit-log"` line to `feedback/inbox.jsonl`.
+4. The page polls history.json, picks up the new change, and includes it in the regular walkthrough.
+
+**As an agent, you are an observer for these edits, not an executor.** Edit-log entries in `inbox.jsonl` have `kind: "edit-log"` — skip them when scanning for comments to process. They're there so you can:
+- Mention them in summaries ("you also fixed 3 typos in the hero section").
+- React if a follow-up comment references one ("undo that edit" → look at the most recent `edit-log` for that page and revert).
+
+Direct edits are restricted to plain text (no `<` or `>` in old/new text) and require the old text to match exactly once inside the target element. If either check fails, the server returns 400 and the client reverts the edit locally.
+
 ## Responding to a feedback batch
 
 When a new batch arrives in `inbox.jsonl`:
+- **Skip `kind: "edit-log"` entries** — those are direct edits already applied by the server, not requests for you to do anything.
 - Read the entry. Each comment has a stable `cf_id` and a selector pointing to the exact element/text the user commented on.
 - Edit the relevant HTML files to address each comment. Wrap each modified region with `<span data-cf-change="ch-<short-slug>">…</span>` (or add `data-cf-change` to an existing wrapping element) so the post-reload walkthrough can find the change. One anchor per change.
 - **Append** a new batch object to the end of `<dir>/feedback/history.json` (newest = last; the library walks from the end to find the latest batch). Schema:

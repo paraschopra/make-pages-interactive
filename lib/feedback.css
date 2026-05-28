@@ -611,3 +611,25 @@ body.cf-elem-mode {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
 }
+
+/* ---------------- Edit mode (direct text edits) ---------------- */
+body.cf-edit-mode .cf-editable {
+  outline: 1px dashed rgba(56, 132, 255, 0.45);
+  outline-offset: 2px;
+  cursor: text;
+  transition: outline-color 0.12s ease, background 0.12s ease;
+}
+body.cf-edit-mode .cf-editable:hover {
+  outline-color: rgba(56, 132, 255, 0.85);
+  background: rgba(56, 132, 255, 0.04);
+}
+body.cf-edit-mode .cf-editable:focus {
+  outline: 2px solid rgba(56, 132, 255, 0.9);
+  background: rgba(56, 132, 255, 0.07);
+  border-radius: 2px;
+}
+#cf-edit-toggle.cf-active {
+  background: #3884ff;
+  color: white;
+  border-color: #3884ff;
+}
