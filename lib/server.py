@@ -150,6 +150,62 @@ class FeedbackHandler(http.server.SimpleHTTPRequestHandler):
             self._json(200, {"ok": True})
             return
 
+        if parsed.path == "/status":
+            # Agent-side: write an in-flight "what I'm doing" string keyed by
+            # comment_id. The page polls feedback/status.json and decorates the
+            # existing processing banner with the message. Entirely optional;
+            # the existing processing flow is unchanged if no status is posted.
+            #
+            # Body: {"comment_id": "...", "message": "..."}
+            # - Empty/null message => remove that comment_id from status.json
+            # - Entries older than 10 min are pruned on every write (covers the
+            #   case where the agent crashes and never clears its own entry)
+            # - Atomic .tmp + os.replace so the page never reads a partial file
+            #
+            # history.json remains the source of truth for "done" — status is
+            # decoration only.
+            length = int(self.headers.get("Content-Length", "0"))
+            body = self.rfile.read(length).decode("utf-8") if length else ""
+            try:
+                data = json.loads(body) if body else {}
+            except json.JSONDecodeError:
+                self._json(400, {"ok": False, "error": "invalid json"})
+                return
+            cid = data.get("comment_id")
+            if not cid:
+                self._json(400, {"ok": False, "error": "comment_id required"})
+                return
+            msg = data.get("message")
+            status_path = self.feedback_dir / "status.json"
+            current = {}
+            if status_path.exists():
+                try:
+                    current = json.loads(status_path.read_text())
+                    if not isinstance(current, dict):
+                        current = {}
+                except (json.JSONDecodeError, OSError):
+                    current = {}
+            # Prune entries older than 10 min.
+            now = time.time()
+            for k in list(current.keys()):
+                entry = current.get(k)
+                started = entry.get("started_at_epoch") if isinstance(entry, dict) else None
+                if not started or (now - started) > 600:
+                    current.pop(k, None)
+            if msg:
+                current[cid] = {
+                    "message": str(msg),
+                    "started_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
+                    "started_at_epoch": now,
+                }
+            else:
+                current.pop(cid, None)
+            tmp = status_path.with_suffix(".json.tmp")
+            tmp.write_text(json.dumps(current, indent=2))
+            os.replace(tmp, status_path)
+            self._json(200, {"ok": True})
+            return
+
         if parsed.path == "/mark-seen":
             length = int(self.headers.get("Content-Length", "0"))
             body = self.rfile.read(length).decode("utf-8") if length else ""

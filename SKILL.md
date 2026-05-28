@@ -68,6 +68,19 @@ When a new batch arrives in `inbox.jsonl`:
   ```
 - The page polls `history.json`, sees the new batch, auto-reloads (scroll position preserved), and offers the user a walkthrough of the changes. The "processing…" banner clears automatically when any `in_response_to` matches a submitted comment id.
 
+### Optional: post in-flight status while you work
+
+If a comment is going to take more than a few seconds (downstream skill invocation, browser automation, web search), POST a short status string so the user sees what you're doing instead of just a generic spinner:
+
+```
+POST /status
+{"comment_id": "<cf_id from inbox>", "message": "Filing 2 receipts to Google Sheet (~30s)"}
+```
+
+To clear an entry early, POST the same `comment_id` with `message: null` or `""`. Entries are auto-pruned by the server after 10 min so a crashed agent never leaves a stuck "working" message.
+
+`history.json` remains the source of truth for "done" — the status message is decoration only. The banner clears the moment a matching batch lands in `history.json`, regardless of whether you cleared the status entry.
+
 ## On startup in a directory that already has feedback
 
 If you find `<dir>/feedback/inbox.jsonl` and `<dir>/feedback/history.json` and the skill has been invoked in this session:
