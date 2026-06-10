@@ -48,6 +48,7 @@ User says any of:
 
 When a new batch arrives in `inbox.jsonl`:
 - Read the entry. Each comment has a stable `cf_id` and a selector pointing to the exact element/text the user commented on.
+- **Handle every comment in the batch.** A batch can hold more than one comment. Address all of them, and put each comment's id in some change's `in_response_to`. The page tracks progress per comment: if you answer only some, the rest stay marked "awaiting" so the user can see what was skipped. If you really can't act on a comment, still list its id in `in_response_to` and explain why in the change `description`, so it isn't left hanging.
 - Edit the relevant HTML files to address each comment. Wrap each modified region with `<span data-cf-change="ch-<short-slug>">…</span>` (or add `data-cf-change` to an existing wrapping element) so the post-reload walkthrough can find the change. One anchor per change.
 - **Append** a new batch object to the end of `<dir>/feedback/history.json` (newest = last; the library walks from the end to find the latest batch). Schema:
   ```json
