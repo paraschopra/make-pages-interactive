@@ -299,6 +299,9 @@
   font-style: italic;
 }
 .cf-comment-quote.cf-comment-general { font-style: normal; color: #b14000; font-weight: 600; font-size: 11px; letter-spacing: 0.4px; text-transform: uppercase; border-left-color: #b14000; }
+.cf-comment-quote.cf-comment-quote-done { opacity: 0.55; border-left-color: #6aa84f; }
+.cf-comment-pending-tag { font-style: normal; font-weight: 600; font-size: 10px; letter-spacing: 0.3px; text-transform: uppercase; color: #b14000; margin-right: 4px; }
+.cf-comment-done-tag { font-style: normal; font-weight: 600; font-size: 10px; letter-spacing: 0.3px; text-transform: uppercase; color: #6aa84f; margin-right: 4px; }
 .cf-comment-body { color: #1a1a1a; white-space: pre-wrap; }
 .cf-comment-meta {
   display: flex;
