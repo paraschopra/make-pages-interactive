@@ -104,10 +104,52 @@ class FeedbackHandler(http.server.SimpleHTTPRequestHandler):
             }
             self._json(200, info)
             return
+        if parsed.path == "/pending":
+            # Comments in the inbox that no history change has answered yet.
+            # Lets an agent pull the open feedback at any time, even when no
+            # live Monitor saw it arrive (new session, server restarted, etc.).
+            self._json(200, {"pending": self._pending_comments()})
+            return
         if parsed.path.startswith("/lib/"):
             self._serve_from_lib(parsed.path[len("/lib/"):])
             return
         super().do_GET()
+
+    def _pending_comments(self):
+        """Inbox comments whose id is not in any history in_response_to."""
+        inbox = self.feedback_dir / "inbox.jsonl"
+        history = self.feedback_dir / "history.json"
+
+        answered = set()
+        if history.exists():
+            try:
+                for batch in json.loads(history.read_text() or "[]"):
+                    for ch in batch.get("changes", []):
+                        for cid in ch.get("in_response_to", []):
+                            answered.add(cid)
+            except (json.JSONDecodeError, AttributeError):
+                pass
+
+        pending = []
+        if inbox.exists():
+            for line in inbox.read_text().splitlines():
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    batch = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                for c in batch.get("comments", []):
+                    if c.get("id") and c["id"] not in answered:
+                        pending.append({
+                            "id": c["id"],
+                            "comment": c.get("comment", ""),
+                            "type": c.get("type"),
+                            "page_url": batch.get("page_url"),
+                            "submitted_at": batch.get("submitted_at"),
+                        })
+        return pending
 
     def _serve_from_lib(self, rel: str):
         # Path-traversal-safe lookup inside LIB_DIR

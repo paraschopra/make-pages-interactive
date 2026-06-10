@@ -42,7 +42,14 @@ User says any of:
    ```
    Monitor on path: <dir>/feedback/inbox.jsonl
    ```
-   Do NOT poll — let the Monitor notification arrive.
+   Do NOT poll — let the Monitor notification arrive. The Monitor is a
+   convenience, not the source of truth: it only catches comments that arrive
+   while it is running. To see every open comment at any time (including ones
+   sent while no session was watching), ask the server:
+   ```
+   curl -s http://localhost:<port>/pending
+   ```
+   It returns the inbox comments that no history change has answered yet.
 
 ## Responding to a feedback batch
 
@@ -71,10 +78,9 @@ When a new batch arrives in `inbox.jsonl`:
 ## On startup in a directory that already has feedback
 
 If you find `<dir>/feedback/inbox.jsonl` and `<dir>/feedback/history.json` and the skill has been invoked in this session:
-1. Scan inbox for comment ids.
-2. Scan history's `changes[*].in_response_to` union — those are already processed.
-3. If unprocessed comments exist, tell the user the count and ask whether to process now.
-4. Either way, set up the Monitor on the inbox.
+1. Ask the server for the open comments: `curl -s http://localhost:<port>/pending`. It lists every inbox comment that no history change has answered yet. (Equivalent by hand: inbox comment ids minus the union of history's `changes[*].in_response_to`.)
+2. If there are open comments, tell the user the count and ask whether to process them now.
+3. Either way, set up the Monitor on the inbox for new ones.
 
 ## Stop flow (user wants to kill the server)
 
