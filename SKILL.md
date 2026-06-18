@@ -134,3 +134,5 @@ Strips both tags from every `*.html`. Leaves the `feedback/` directory alone (de
 - The injected `<link>` and `<script>` reference absolute paths `/lib/feedback.css` and `/lib/feedback.js`. These resolve through `server.py`, which routes `/lib/*` to the skill's own `lib/` directory. So pages only work when opened through this server — opening the HTML file directly in a browser will silently fail to load the feedback widget (the page itself still renders).
 - `history.json` order matters: append (don't prepend). The library walks from the end to find the latest batch for the walkthrough.
 - `anchor` values must match a `data-cf-change` attribute actually present in the HTML. Typos here cause "anchor not found" warnings post-reload.
+- The server binds to `127.0.0.1` by default (loopback only). If the user wants to view from another device on the LAN, pass `--bind 0.0.0.0` — but warn them this exposes the comment endpoint to anyone on the network.
+- POSTs to `/feedback` and `/mark-seen` are rejected if the `Origin` header names a different host. Same-origin browser requests, curl, and agent-side scripts work as before.
