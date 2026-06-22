@@ -1,0 +1,126 @@
+/*
+ * overlay.css — persistent left-gutter change bars for agent-edited regions.
+ *
+ * Wrap any HTML region that Claude edited with:
+ *   <span data-cf-change="ch-your-slug">…edited content…</span>
+ *
+ * Works alongside make-pages-interactive's own feedback styles without touching them.
+ * Pair with overlay.js to number the changes and build the floating "Changes (N)" chip.
+ *
+ * License: MIT (same as the make-pages-interactive repository).
+ */
+
+/* Left-gutter bar on every changed region. */
+[data-cf-change] {
+  position: relative;
+  border-left: 4px solid #ffd33d;
+  padding-left: 14px !important;
+  margin-left: -18px !important;
+  background: linear-gradient(90deg, rgba(255, 211, 61, 0.10) 0%, rgba(255, 211, 61, 0) 60%);
+  border-radius: 2px;
+  transition: background 0.3s;
+}
+
+[data-cf-change]:hover {
+  background: linear-gradient(90deg, rgba(255, 211, 61, 0.18) 0%, rgba(255, 211, 61, 0.02) 60%);
+}
+
+/* Numbered badge — overlay.js sets data-cf-num. */
+[data-cf-change]::before {
+  content: attr(data-cf-num);
+  position: absolute;
+  left: -32px;
+  top: 4px;
+  background: #ffd33d;
+  color: #1f2328;
+  font-size: 11px;
+  font-weight: 700;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: -apple-system, sans-serif;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+
+/* Floating "Changes (N)" jump chip, top-right corner. */
+#changes-chip {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  background: #fff;
+  border: 1px solid #d0d7de;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  font-size: 13px;
+  z-index: 9999;
+  max-width: 320px;
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+#changes-chip-header {
+  padding: 8px 14px;
+  cursor: pointer;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  user-select: none;
+}
+
+#changes-chip-header::before {
+  content: "●";
+  color: #ffd33d;
+  font-size: 14px;
+}
+
+#changes-chip-list {
+  display: none;
+  border-top: 1px solid #d0d7de;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+#changes-chip.open #changes-chip-list {
+  display: block;
+}
+
+#changes-chip-list a {
+  display: block;
+  padding: 8px 14px;
+  color: #1f2328;
+  text-decoration: none;
+  border-bottom: 1px solid #f0f3f6;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+#changes-chip-list a:hover {
+  background: #f6f8fa;
+}
+
+#changes-chip-list a:last-child {
+  border-bottom: 0;
+}
+
+#changes-chip-list .num {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  background: #ffd33d;
+  color: #1f2328;
+  border-radius: 50%;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 18px;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+/* Reserve left-margin space so gutter badges have room. */
+body {
+  padding-left: 56px !important;
+}
