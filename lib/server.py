@@ -230,8 +230,9 @@ class FeedbackHandler(http.server.SimpleHTTPRequestHandler):
 
     # Silence the default request logging — too noisy for our purposes.
     def log_message(self, format, *args):
-        # Only log POSTs and errors
-        if args and (args[0].startswith("POST") or " 4" in " ".join(map(str, args)) or " 5" in " ".join(map(str, args))):
+        # Only log POSTs and errors. Note: on error paths (e.g. send_error)
+        # args[0] is an HTTPStatus enum, not a str, so cast before .startswith.
+        if args and (str(args[0]).startswith("POST") or " 4" in " ".join(map(str, args)) or " 5" in " ".join(map(str, args))):
             sys.stderr.write("%s - %s\n" % (self.address_string(), format % args))
 
 
